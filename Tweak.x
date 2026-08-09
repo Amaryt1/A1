@@ -7,7 +7,23 @@
 #define kOptGhostMsg   @"AMARYT_GhostMsg"
 
 // ==========================================
-// 1. واجهة الإعدادات (Settings VC)
+// 1. نافذة عائمة مستقلة تضمن عدم اختفاء الزر (Pass-Through Overlay Window)
+// ==========================================
+@interface AMARYTWindow : UIWindow
+@end
+
+@implementation AMARYTWindow
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    UIView *hitView = [super hitTest:point withEvent:event];
+    if (hitView == self || hitView == self.rootViewController.view) {
+        return nil; // التمرير للفيسبوك تحت النافذة إذا لم يُضغط على الزر مباشرة
+    }
+    return hitView;
+}
+@end
+
+// ==========================================
+// 2. واجهة الإعدادات (Settings VC)
 // ==========================================
 @interface AMARYTSettingsVC : UITableViewController
 @end
@@ -48,7 +64,7 @@
     
     switch (indexPath.row) {
         case 0:
-            cell.textLabel.text = @"⬇️ تفعيل زر تحميل المقاطع والريلز";
+            cell.textLabel.text = @"⬇️ زر تحميل المقاطع والريلز";
             switchControl.on = [defaults boolForKey:kOptDownloader];
             break;
         case 1:
@@ -83,7 +99,7 @@
 @end
 
 // ==========================================
-// 2. الزر العائم (Floating Button)
+// 3. الزر العائم (Floating Button)
 // ==========================================
 @interface AMARYTFloatingButton : UIView
 @property (nonatomic, strong) UIImageView *iconImageView;
@@ -91,29 +107,20 @@
 
 @implementation AMARYTFloatingButton
 
-+ (instancetype)sharedButton {
-    static AMARYTFloatingButton *instance = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[AMARYTFloatingButton alloc] initWithFrame:CGRectMake(20, 160, 56, 56)];
-    });
-    return instance;
-}
-
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
         self.layer.cornerRadius = 28;
         self.layer.shadowColor = [UIColor blackColor].CGColor;
         self.layer.shadowOffset = CGSizeMake(0, 4);
-        self.layer.shadowOpacity = 0.4;
-        self.layer.shadowRadius = 5;
+        self.layer.shadowOpacity = 0.5;
+        self.layer.shadowRadius = 6;
         
         self.iconImageView = [[UIImageView alloc] initWithFrame:self.bounds];
         self.iconImageView.layer.cornerRadius = 28;
         self.iconImageView.clipsToBounds = YES;
         self.iconImageView.contentMode = UIViewContentModeScaleAspectFill;
-        self.iconImageView.backgroundColor = [UIColor colorWithWhite:0.2 alpha:1.0];
+        self.iconImageView.backgroundColor = [UIColor colorWithWhite:0.1 alpha:1.0];
         [self addSubview:self.iconImageView];
         
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -154,13 +161,7 @@
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:settingsVC];
     nav.modalPresentationStyle = UIModalPresentationFormSheet;
     
-    UIWindow *keyWindow = nil;
-    for (UIWindow *w in [UIApplication sharedApplication].windows) {
-        if (w.isKeyWindow) { keyWindow = w; break; }
-    }
-    if (!keyWindow) keyWindow = [UIApplication sharedApplication].windows.firstObject;
-    
-    UIViewController *rootVC = keyWindow.rootViewController;
+    UIViewController *rootVC = self.window.rootViewController;
     while (rootVC.presentedViewController) {
         rootVC = rootVC.presentedViewController;
     }
@@ -170,21 +171,109 @@
 @end
 
 // ==========================================
-// 3. حقن الزر بأمان بعد اكتمال التشغيل (Safe Injection)
+// 4. مدير النافذة المرتفعة (Overlay Manager)
+// ==========================================
+static AMARYTWindow *gOverlayWindow = nil;
+
+static void setupOverlayWindow(void) {
+    if (gOverlayWindow) return;
+    
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    gOverlayWindow = [[AMARYTWindow alloc] initWithFrame:screenBounds];
+    gOverlayWindow.windowLevel = UIWindowLevelAlert + 10;
+    gOverlayWindow.backgroundColor = [UIColor clearColor];
+    
+    UIViewController *vc = [[UIViewController alloc] init];
+    vc.view.backgroundColor = [UIColor clearColor];
+    gOverlayWindow.rootViewController = vc;
+    
+    AMARYTFloatingButton *btn = [[AMARYTFloatingButton alloc] initWithFrame:CGRectMake(20, 160, 56, 56)];
+    [vc.view addSubview:btn];
+    
+    gOverlayWindow.hidden = NO;
+}
+
+// ==========================================
+// 5. تهيئة الميزات وتفعيلها افتراضياً (%ctor)
 // ==========================================
 %ctor {
+    // تفعيل جميع الميزات تلقائياً فور أول تثبيت
+    NSDictionary *defaultSettings = @{
+        kOptDownloader: @YES,
+        kOptBlockAds: @YES,
+        kOptGhostStory: @YES,
+        kOptGhostMsg: @YES
+    };
+    [[NSUserDefaults standardUserDefaults] registerDefaults:defaultSettings];
+    
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            UIWindow *keyWindow = nil;
-            for (UIWindow *w in [UIApplication sharedApplication].windows) {
-                if (w.isKeyWindow) { keyWindow = w; break; }
-            }
-            if (!keyWindow) keyWindow = [UIApplication sharedApplication].windows.firstObject;
-            
-            AMARYTFloatingButton *btn = [AMARYTFloatingButton sharedButton];
-            if (keyWindow && !btn.superview) {
-                [keyWindow addSubview:btn];
-            }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            setupOverlayWindow();
         });
     }];
 }
+
+// ==========================================
+// 6. خطافات التفعيل (Hooks)
+// ==========================================
+
+%hook FBFeedAdUnit
+- (id)init {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:kOptBlockAds]) return nil;
+    return %orig;
+}
+%end
+
+%hook FBStorySeenState
+- (void)markStoryAsSeen:(id)story {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:kOptGhostStory]) return;
+    %orig;
+}
+%end
+
+%hook FBMessagesReadReceipt
+- (void)sendReadReceiptForMessage:(id)message {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:kOptGhostMsg]) return;
+    %orig;
+}
+%end
+
+@interface FBVideoPlayerViewController : UIViewController
+@property (nonatomic, strong) NSURL *videoURL;
+@end
+
+%hook FBVideoPlayerViewController
+- (void)viewDidLoad {
+    %orig;
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:kOptDownloader]) return;
+    
+    UIButton *dlBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    dlBtn.frame = CGRectMake(self.view.frame.size.width - 55, 120, 44, 44);
+    [dlBtn setTitle:@"⬇️" forState:UIControlStateNormal];
+    dlBtn.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.6];
+    dlBtn.layer.cornerRadius = 22;
+    [dlBtn addTarget:self action:@selector(amarytDownloadMediaAction) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:dlBtn];
+}
+
+%new
+- (void)amarytDownloadMediaAction {
+    NSURL *url = self.videoURL;
+    if (!url) return;
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSData *data = [NSData dataWithContentsOfURL:url];
+        if (data) {
+            NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"fb_download.mp4"];
+            [data writeToFile:path atomically:YES];
+            
+            dispatch_async(dispatch_get_main_queue(), ^{
+                UISaveVideoAtPathToSavedPhotosAlbum(path, nil, nil, nil);
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"AMARYT Tools" message:@"تم حفظ الفيديو في الاستوديو بنجاح ✅" preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"موافق" style:UIAlertActionStyleDefault handler:nil]];
+                [self presentViewController:alert animated:YES completion:nil];
+            });
+        }
+    });
+}
+%end
