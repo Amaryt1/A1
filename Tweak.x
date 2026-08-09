@@ -71,7 +71,7 @@ void ShowWelcomePopup(void) {
                                                                        message:@"\nتم تفعيل الأدوات وإصلاح حفظ تسجيل الدخول بنجاح!"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
 
-        // جلب الصورة المعينة وحقنها داخل النافذة
+        // جلب صورة التفعيل وحقنها داخل النافذة
         NSURL *imageURL = [NSURL URLWithString:@"https://i.ibb.co/nNR6pDdN/4-B524707-0-AB6-47-E7-984-F-1-C5661-B4-F776.jpg"];
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSData *data = [NSData dataWithContentsOfURL:imageURL];
@@ -84,7 +84,6 @@ void ShowWelcomePopup(void) {
                     imageView.clipsToBounds = YES;
                     imageVC.view = imageView;
                     
-                    // ضبط أبعاد عرض الصورة
                     [imageVC.view.heightAnchor constraintEqualToConstant:150].active = YES;
                     [alert setValue:imageVC forKey:@"contentViewController"];
                 });
@@ -97,18 +96,16 @@ void ShowWelcomePopup(void) {
 }
 
 // ============================================================================
-// 3. مميزات وتعديلات الفيسبوك (Facebook Features)
+// 3. مميزات وتعديلات الفيسبوك (Facebook Hooks)
 // ============================================================================
 
-%config(generator=mobile substrate);
-
-// إزالة الإعلانات والمنشورات الموصى بها
+// إزالة الإعلانات
 %hook FBMemFeedItem
 - (BOOL)isSponsored { return NO; }
 - (BOOL)isSuggested { return NO; }
 %end
 
-// إزالة قسم "أشخاص قد تعرفهم" والريلز من التلقيمة
+// إزالة أشخاص قد تعرفهم والريلز
 %hook FBPickerPeopleYouMayKnowFeedUnit
 - (id)init { return nil; }
 %end
@@ -117,14 +114,12 @@ void ShowWelcomePopup(void) {
 - (id)init { return nil; }
 %end
 
-// الوضع المتخفي للقصص (Anonymous Story Viewer)
+// المشاهدة الخفية للقصص
 %hook FBStoryViewerViewController
-- (void)markStoryAsRead:(id)arg1 {
-    // إيقاف إرسال توكن المشاهدة للخادوم
-}
+- (void)markStoryAsRead:(id)arg1 { }
 %end
 
-// تأكيد الإعجاب قبل التفاعل (Confirm Like)
+// تأكيد الإعجاب قبل التفاعل
 %hook FBLikeButton
 - (void)handleTap:(id)sender {
     UIViewController *topVC = [UIApplication sharedApplication].keyWindow.rootViewController;
@@ -142,16 +137,14 @@ void ShowWelcomePopup(void) {
 %end
 
 // ============================================================================
-// 4. تهيئة التويك والربط عند الإقلاع (Constructor)
+// 4. التهيئة والتثبيت عند الإقلاع
 // ============================================================================
 
 %ctor {
-    // ربط دوال الكيشين لمنع خروج الحساب
     MSHookFunction((void *)SecItemAdd, (void *)hooked_SecItemAdd, (void **)&orig_SecItemAdd);
     MSHookFunction((void *)SecItemCopyMatching, (void *)hooked_SecItemCopyMatching, (void **)&orig_SecItemCopyMatching);
     MSHookFunction((void *)SecItemUpdate, (void *)hooked_SecItemUpdate, (void **)&orig_SecItemUpdate);
     MSHookFunction((void *)SecItemDelete, (void *)hooked_SecItemDelete, (void **)&orig_SecItemDelete);
     
-    // إظهار نافذة التفعيل المنبثقة والصورة
     ShowWelcomePopup();
 }
