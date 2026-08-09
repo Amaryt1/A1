@@ -1,10 +1,11 @@
 TARGET := iphone:clang:latest:14.0
-INSTALL_TARGET_PROCESSES = Facebook
+ARCHS = arm64 arm64e
 
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = FBAMARYT
+
 FBAMARYT_FILES = Tweak.x
 FBAMARYT_CFLAGS = -fobjc-arc
 
-include $(THEOS_MAKE_PATH)/tweak.mk
+include $(THEOS_MAKEFILE_PATH)/tweak.mk
