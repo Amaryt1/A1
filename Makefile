@@ -8,4 +8,4 @@ TWEAK_NAME = FBAMARYT
 FBAMARYT_FILES = Tweak.x
 FBAMARYT_CFLAGS = -fobjc-arc
 
-include $(THEOS_MAKEFILE_PATH)/tweak.mk
+include $(THEOS)/makefiles/tweak.mk
