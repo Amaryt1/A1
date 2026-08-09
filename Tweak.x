@@ -3,10 +3,42 @@
 #import <Security/Security.h>
 #import <substrate.h>
 
+// إيقاف تحذيرات الدوال المهجورة لمنع فشل البناء
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+// ============================================================================
+// دالة مساعدة جالبة للنافذة النشطة (Top ViewController) بطريقة حديثة
+// ============================================================================
+static UIViewController *GetTopViewController(void) {
+    UIWindow *keyWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                for (UIWindow *window in windowScene.windows) {
+                    if (window.isKeyWindow) {
+                        keyWindow = window;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (!keyWindow) {
+        keyWindow = [UIApplication sharedApplication].keyWindow;
+    }
+    
+    UIViewController *topVC = keyWindow.rootViewController;
+    while (topVC.presentedViewController) {
+        topVC = topVC.presentedViewController;
+    }
+    return topVC;
+}
+
 // ============================================================================
 // 1. إصلاح مشكلة عدم حفظ تسجيل الدخول (Keychain Fix Hook)
 // ============================================================================
-
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef attributes, CFTypeRef *result);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef query, CFTypeRef *result);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef query, CFDictionaryRef attributesToUpdate);
@@ -15,7 +47,6 @@ static OSStatus (*orig_SecItemDelete)(CFDictionaryRef query);
 static CFMutableDictionaryRef CleanKeychainQuery(CFDictionaryRef query) {
     if (!query) return NULL;
     CFMutableDictionaryRef mutableDict = CFDictionaryCreateMutableCopy(kCFAllocatorDefault, 0, query);
-    // إزالة قيد kSecAttrAccessGroup لمنع رفض الحفظ بسبب اختلاف الشهادة
     CFDictionaryRemoveValue(mutableDict, kSecAttrAccessGroup);
     return mutableDict;
 }
@@ -51,27 +82,15 @@ OSStatus hooked_SecItemDelete(CFDictionaryRef query) {
 // ============================================================================
 // 2. النافذة المنبثقة للتحقق مع عرض صورة التفعيل
 // ============================================================================
-
 void ShowWelcomePopup(void) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIWindow *keyWindow = nil;
-        for (UIWindow *window in [UIApplication sharedApplication].windows) {
-            if (window.isKeyWindow) {
-                keyWindow = window;
-                break;
-            }
-        }
-        
-        UIViewController *topVC = keyWindow.rootViewController;
-        while (topVC.presentedViewController) {
-            topVC = topVC.presentedViewController;
-        }
+        UIViewController *topVC = GetTopViewController();
+        if (!topVC) return;
 
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"AMARYT Tools"
                                                                        message:@"\nتم تفعيل الأدوات وإصلاح حفظ تسجيل الدخول بنجاح!"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
 
-        // جلب صورة التفعيل وحقنها داخل النافذة
         NSURL *imageURL = [NSURL URLWithString:@"https://i.ibb.co/nNR6pDdN/4-B524707-0-AB6-47-E7-984-F-1-C5661-B4-F776.jpg"];
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSData *data = [NSData dataWithContentsOfURL:imageURL];
@@ -98,14 +117,11 @@ void ShowWelcomePopup(void) {
 // ============================================================================
 // 3. مميزات وتعديلات الفيسبوك (Facebook Hooks)
 // ============================================================================
-
-// إزالة الإعلانات
 %hook FBMemFeedItem
 - (BOOL)isSponsored { return NO; }
 - (BOOL)isSuggested { return NO; }
 %end
 
-// إزالة أشخاص قد تعرفهم والريلز
 %hook FBPickerPeopleYouMayKnowFeedUnit
 - (id)init { return nil; }
 %end
@@ -114,15 +130,18 @@ void ShowWelcomePopup(void) {
 - (id)init { return nil; }
 %end
 
-// المشاهدة الخفية للقصص
 %hook FBStoryViewerViewController
 - (void)markStoryAsRead:(id)arg1 { }
 %end
 
-// تأكيد الإعجاب قبل التفاعل
 %hook FBLikeButton
 - (void)handleTap:(id)sender {
-    UIViewController *topVC = [UIApplication sharedApplication].keyWindow.rootViewController;
+    UIViewController *topVC = GetTopViewController();
+    if (!topVC) {
+        %orig;
+        return;
+    }
+
     UIAlertController *confirmAlert = [UIAlertController alertControllerWithTitle:@"تأكيد الإعجاب"
                                                                           message:@"هل تريد بالتأكيد وضع إعجاب على هذا المنشور؟"
                                                                    preferredStyle:UIAlertControllerStyleAlert];
@@ -139,7 +158,6 @@ void ShowWelcomePopup(void) {
 // ============================================================================
 // 4. التهيئة والتثبيت عند الإقلاع
 // ============================================================================
-
 %ctor {
     MSHookFunction((void *)SecItemAdd, (void *)hooked_SecItemAdd, (void **)&orig_SecItemAdd);
     MSHookFunction((void *)SecItemCopyMatching, (void *)hooked_SecItemCopyMatching, (void **)&orig_SecItemCopyMatching);
@@ -148,3 +166,5 @@ void ShowWelcomePopup(void) {
     
     ShowWelcomePopup();
 }
+
+#pragma clang diagnostic pop
