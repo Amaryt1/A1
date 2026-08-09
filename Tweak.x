@@ -3,42 +3,13 @@
 #import <Security/Security.h>
 #import <substrate.h>
 
-// إيقاف تحذيرات الدوال المهجورة لمنع فشل البناء
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 // ============================================================================
-// دالة مساعدة جالبة للنافذة النشطة (Top ViewController) بطريقة حديثة
+// 1. إصلاح الكيشين (Keychain Fix) - يعمل بأمان في بداية التحميل
 // ============================================================================
-static UIViewController *GetTopViewController(void) {
-    UIWindow *keyWindow = nil;
-    if (@available(iOS 13.0, *)) {
-        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                for (UIWindow *window in windowScene.windows) {
-                    if (window.isKeyWindow) {
-                        keyWindow = window;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if (!keyWindow) {
-        keyWindow = [UIApplication sharedApplication].keyWindow;
-    }
-    
-    UIViewController *topVC = keyWindow.rootViewController;
-    while (topVC.presentedViewController) {
-        topVC = topVC.presentedViewController;
-    }
-    return topVC;
-}
 
-// ============================================================================
-// 1. إصلاح مشكلة عدم حفظ تسجيل الدخول (Keychain Fix Hook)
-// ============================================================================
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef attributes, CFTypeRef *result);
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef query, CFTypeRef *result);
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef query, CFDictionaryRef attributesToUpdate);
@@ -80,43 +51,85 @@ OSStatus hooked_SecItemDelete(CFDictionaryRef query) {
 }
 
 // ============================================================================
-// 2. النافذة المنبثقة للتحقق مع عرض صورة التفعيل
+// 2. دالة جلب الواجهة وعرض النافذة المنبثقة
 // ============================================================================
-void ShowWelcomePopup(void) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIViewController *topVC = GetTopViewController();
-        if (!topVC) return;
 
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"AMARYT Tools"
-                                                                       message:@"\nتم تفعيل الأدوات وإصلاح حفظ تسجيل الدخول بنجاح!"
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-
-        NSURL *imageURL = [NSURL URLWithString:@"https://i.ibb.co/nNR6pDdN/4-B524707-0-AB6-47-E7-984-F-1-C5661-B4-F776.jpg"];
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSData *data = [NSData dataWithContentsOfURL:imageURL];
-            if (data) {
-                UIImage *image = [UIImage imageWithData:data];
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    UIViewController *imageVC = [[UIViewController alloc] init];
-                    UIImageView *imageView = [[UIImageView alloc] initWithImage:image];
-                    imageView.contentMode = UIViewContentModeScaleAspectFit;
-                    imageView.clipsToBounds = YES;
-                    imageVC.view = imageView;
-                    
-                    [imageVC.view.heightAnchor constraintEqualToConstant:150].active = YES;
-                    [alert setValue:imageVC forKey:@"contentViewController"];
-                });
+static UIViewController *GetTopViewController(void) {
+    UIWindow *keyWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                for (UIWindow *window in windowScene.windows) {
+                    if (window.isKeyWindow) {
+                        keyWindow = window;
+                        break;
+                    }
+                }
             }
-        });
+        }
+    }
+    if (!keyWindow) {
+        keyWindow = [UIApplication sharedApplication].keyWindow;
+    }
+    
+    UIViewController *topVC = keyWindow.rootViewController;
+    while (topVC.presentedViewController) {
+        topVC = topVC.presentedViewController;
+    }
+    return topVC;
+}
 
-        [alert addAction:[UIAlertAction actionWithTitle:@"موافق" style:UIAlertActionStyleDefault handler:nil]];
-        [topVC presentViewController:alert animated:YES completion:nil];
+void ShowWelcomePopup(void) {
+    UIViewController *topVC = GetTopViewController();
+    if (!topVC) return;
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"AMARYT Tools"
+                                                                   message:@"\nتم تفعيل الأدوات وإصلاح حفظ تسجيل الدخول بنجاح!"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+
+    NSURL *imageURL = [NSURL URLWithString:@"https://i.ibb.co/nNR6pDdN/4-B524707-0-AB6-47-E7-984-F-1-C5661-B4-F776.jpg"];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSData *data = [NSData dataWithContentsOfURL:imageURL];
+        if (data) {
+            UIImage *image = [UIImage imageWithData:data];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                UIViewController *imageVC = [[UIViewController alloc] init];
+                UIImageView *imageView = [[UIImageView alloc] initWithImage:image];
+                imageView.contentMode = UIViewContentModeScaleAspectFit;
+                imageView.clipsToBounds = YES;
+                imageVC.view = imageView;
+                
+                [imageVC.view.heightAnchor constraintEqualToConstant:150].active = YES;
+                [alert setValue:imageVC forKey:@"contentViewController"];
+            });
+        }
     });
+
+    [alert addAction:[UIAlertAction actionWithTitle:@"موافق" style:UIAlertActionStyleDefault handler:nil]];
+    [topVC presentViewController:alert animated:YES completion:nil];
 }
 
 // ============================================================================
-// 3. مميزات وتعديلات الفيسبوك (Facebook Hooks)
+// 3. هوك إقلاع التطبيق ومميزات الفيسبوك الآمنة
 // ============================================================================
+
+// عرض النافذة المنبثقة فقط بعد اكتمال إقلاع التطبيق ونشاطه
+%hook UIApplication
+- (void)applicationDidBecomeActive:(id)application {
+    %orig;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            ShowWelcomePopup();
+        });
+    });
+}
+%end
+
+// تجميع هوكات الفيسبوك لحمايتها من الانهيار عند عدم وجود الكلاس
+%group FacebookHooks
+
 %hook FBMemFeedItem
 - (BOOL)isSponsored { return NO; }
 - (BOOL)isSuggested { return NO; }
@@ -155,16 +168,26 @@ void ShowWelcomePopup(void) {
 }
 %end
 
+%end
+
 // ============================================================================
-// 4. التهيئة والتثبيت عند الإقلاع
+// 4. تهيئة التويك الآمنة عند الإقلاع (%ctor)
 // ============================================================================
+
 %ctor {
+    // 1. ربط دوال الكيشين لمنع خروج الحساب (آمن جداً عند الإقلاع)
     MSHookFunction((void *)SecItemAdd, (void *)hooked_SecItemAdd, (void **)&orig_SecItemAdd);
     MSHookFunction((void *)SecItemCopyMatching, (void *)hooked_SecItemCopyMatching, (void **)&orig_SecItemCopyMatching);
     MSHookFunction((void *)SecItemUpdate, (void *)hooked_SecItemUpdate, (void **)&orig_SecItemUpdate);
     MSHookFunction((void *)SecItemDelete, (void *)hooked_SecItemDelete, (void **)&orig_SecItemDelete);
-    
-    ShowWelcomePopup();
+
+    // 2. تهيئة هوك UIApplication
+    %init;
+
+    // 3. تفعيل هوكات الفيسبوك بشرط وجود أحد كلاساتها لتجنب الانهيار
+    if (NSClassFromString(@"FBMemFeedItem") || NSClassFromString(@"FBStoryViewerViewController") || NSClassFromString(@"FBLikeButton")) {
+        %init(FacebookHooks);
+    }
 }
 
 #pragma clang diagnostic pop
