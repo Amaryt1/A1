@@ -1,0 +1,9 @@
+Package: com.amaryt.fbamaryt
+Name: FBAMARYT
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: FBAMARYT Tools for Facebook - Media Downloader, Ghost Mode, Ad Blocker, and Text Copying with Floating Menu.
+Maintainer: AMARYT
+Author: AMARYT
+Section: Tweaks
