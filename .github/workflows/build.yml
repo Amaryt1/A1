@@ -18,12 +18,13 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/theos
-          key: ${{ runner.os }}-theos-sdk-v1
+          key: ${{ runner.os }}-theos-sdk-v2
 
       - name: Setup Theos and SDKs
         if: steps.cache-theos.outputs.cache-hit != 'true'
         run: |
           git clone --recursive https://github.com/theos/theos.git ~/theos
+          rm -rf ~/theos/sdks
           git clone --depth=1 https://github.com/theos/sdks.git ~/theos/sdks
 
       - name: Compile Dylib
