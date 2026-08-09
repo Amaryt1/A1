@@ -1,0 +1,40 @@
+name: Build FBAMARYT Dylib
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies & Setup Theos
+        run: |
+          echo "THEOS=~/theos" >> $GITHUB_ENV
+          git clone --recursive https://github.com/theos/theos.git ~/theos
+          curl -LO https://github.com/theos/sdks/archive/master.zip
+          unzip -q master.zip
+          mkdir -p ~/theos/sdks
+          mv sdks-master/*.sdk ~/theos/sdks/
+          rm -rf master.zip sdks-master
+
+      - name: Compile Dylib
+        run: |
+          export THEOS=~/theos
+          make clean
+          make FINALPACKAGE=1
+
+      - name: Upload Dylib Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FBAMARYT-Dylib
+          path: |
+            .theos/obj/debug/*.dylib
+            .theos/obj/*.dylib
