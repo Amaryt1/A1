@@ -5,9 +5,8 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = FBLoginFix
 
-FBLoginFix_FILES = Tweak.m
+FBLoginFix_FILES = Tweak.x
 FBLoginFix_CFLAGS = -fobjc-arc
 FBLoginFix_FRAMEWORKS = Security Foundation
 
 include $(THEOS_MAKE_PATH)/tweak.mk
-
