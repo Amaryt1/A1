@@ -1,12 +1,12 @@
 TARGET := iphone:clang:latest:14.0
-INSTALL_TARGET_PROCESSES := Facebook
+INSTALL_TARGET_PROCESSES := Instagram
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = FBAMARYT
+TWEAK_NAME = IGAMARYT
 
-FBAMARYT_FILES = Tweak.m
-FBAMARYT_CFLAGS = -fobjc-arc
-FBAMARYT_FRAMEWORKS = UIKit Security Foundation
+IGAMARYT_FILES = Tweak.m
+IGAMARYT_CFLAGS = -fobjc-arc
+IGAMARYT_FRAMEWORKS = UIKit Security Foundation Photos AVFoundation
 
 include $(THEOS_MAKE_PATH)/tweak.mk
