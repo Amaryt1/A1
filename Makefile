@@ -5,7 +5,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = FBAMARYT
 
-FBAMARYT_FILES = Tweak.x
+FBAMARYT_FILES = Tweak.m
 FBAMARYT_CFLAGS = -fobjc-arc
 FBAMARYT_FRAMEWORKS = UIKit Security Foundation
 
