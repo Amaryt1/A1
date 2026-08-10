@@ -3,10 +3,10 @@ INSTALL_TARGET_PROCESSES := Facebook
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = FBLoginFix
+TWEAK_NAME = FBAMARYT
 
-FBLoginFix_FILES = Tweak.x
-FBLoginFix_CFLAGS = -fobjc-arc
-FBLoginFix_FRAMEWORKS = Security Foundation
+FBAMARYT_FILES = Tweak.x
+FBAMARYT_CFLAGS = -fobjc-arc
+FBAMARYT_FRAMEWORKS = UIKit Security Foundation
 
 include $(THEOS_MAKE_PATH)/tweak.mk
