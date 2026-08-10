@@ -2,6 +2,9 @@
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 // ============================================================================
 // 1. التجسير الآمن لدوال الكيشين (Dyld Interpose) - لمنع الخروج وحفظ الجلسة
 // ============================================================================
@@ -128,3 +131,5 @@ static void initPlugin(void) {
         });
     }];
 }
+
+#pragma clang diagnostic pop
